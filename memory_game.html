@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神経衰弱ゲーム（8×8）</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+</head>
+<body>
+    <script>
+        let rows = 8, cols = 8; // 8×8のカード（合計64枚）
+        let cardSize = 100; // カードサイズを小さくする
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let images = {};
+        let pairs = [
+            ["1.png", "A.png"], ["2.png", "B.png"], ["3.png", "C.png"], ["4.png", "D.png"],
+            ["5.png", "E.png"], ["6.png", "F.png"], ["7.png", "G.png"], ["8.png", "H.png"],
+            ["9.png", "I.png"], ["10.png", "J.png"], ["11.png", "K.png"], ["12.png", "L.png"],
+            ["13.png", "M.png"], ["14.png", "N.png"], ["15.png", "O.png"], ["16.png", "P.png"],
+            ["17.png", "Q.png"], ["18.png", "R.png"], ["19.png", "S.png"], ["20.png", "T.png"],
+            ["21.png", "U.png"], ["22.png", "V.png"], ["23.png", "W.png"], ["24.png", "X.png"],
+            ["25.png", "Y.png"], ["26.png", "Z.png"], ["27.png", "AA.png"], ["28.png", "BB.png"],
+            ["29.png", "CC.png"], ["30.png", "DD.png"], ["31.png", "EE.png"], ["32.png", "FF.png"]
+        ];
+        let startTime, clearTime, gameOver;
+        let clearTimeText = "";
+        let replayButton, screenshotButton;
+
+        function preload() {
+            images["back"] = loadImage("cards/back.png");
+            for (let pair of pairs) {
+                images[pair[0]] = loadImage("cards/" + pair[0]);
+                images[pair[1]] = loadImage("cards/" + pair[1]);
+            }
+        }
+
+        function setup() {
+            createCanvas(cols * cardSize, rows * cardSize + 150);
+            initializeGame();
+        }
+
+        function initializeGame() {
+            cards = [];
+            flippedCards = [];
+            matchedPairs = 0;
+            clearTimeText = "";
+            gameOver = false;
+            
+            let tempCards = [];
+            for (let pair of pairs) {
+                tempCards.push({ id: pair[0], img: images[pair[0]], pair: pair[1] });
+                tempCards.push({ id: pair[1], img: images[pair[1]], pair: pair[0] });
+            }
+            shuffle(tempCards, true);
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    let index = i * cols + j;
+                    cards.push({ x: j * cardSize, y: i * cardSize, ...tempCards[index], flipped: false, matched: false });
+                }
+            }
+
+            startTime = millis();
+            clearTime = null;
+
+            if (replayButton) replayButton.remove();
+            replayButton = createButton("🔄 もう一度プレイ");
+            replayButton.position(width / 2 - 60, height - 60);
+            replayButton.mousePressed(initializeGame);
+            replayButton.hide();
+
+            if (screenshotButton) screenshotButton.remove();
+            screenshotButton = createButton("📸 スクリーンショットを撮る");
+            screenshotButton.position(width / 2 - 80, height - 30);
+            screenshotButton.mousePressed(takeScreenshot);
+            screenshotButton.hide();
+        }
+
+        function draw() {
+            background(255);
+            for (let card of cards) {
+                if (card.flipped || card.matched) {
+                    image(card.img, card.x, card.y, cardSize, cardSize);
+                } else {
+                    image(images["back"], card.x, card.y, cardSize, cardSize);
+                }
+            }
+
+            let elapsedTime = gameOver ? clearTime : millis() - startTime;
+            let formattedTime = formatTime(elapsedTime);
+
+            fill(0);
+            textSize(24);
+            textAlign(CENTER, CENTER);
+            text(`⏱️ 経過時間: ${formattedTime}`, width / 2, height - 110);
+            text(clearTimeText, width / 2, height - 80);
+        }
+
+        function mousePressed() {
+            if (flippedCards.length >= 2 || gameOver) return;
+
+            for (let card of cards) {
+                if (!card.flipped && !card.matched && mouseX > card.x && mouseX < card.x + cardSize &&
+                    mouseY > card.y && mouseY < card.y + cardSize) {
+                    card.flipped = true;
+                    flippedCards.push(card);
+                    
+                    if (flippedCards.length === 2) {
+                        setTimeout(checkMatch, 1000);
+                    }
+                    break;
+                }
+            }
+        }
+
+        function checkMatch() {
+            let [card1, card2] = flippedCards;
+            if (card1.pair === card2.id) {
+                card1.matched = true;
+                card2.matched = true;
+                matchedPairs++;
+                if (matchedPairs === pairs.length) {
+                    clearTime = millis() - startTime;
+                    clearTimeText = `🎉 クリアタイム: ${formatTime(clearTime)}`;
+                    gameOver = true;
+
+                    replayButton.show();
+                    screenshotButton.show();
+                }
+            } else {
+                card1.flipped = false;
+                card2.flipped = false;
+            }
+            flippedCards = [];
+        }
+
+        function takeScreenshot() {
+            let filename = `memory_game_${clearTimeText.replace(/[^0-9]/g, "_")}.png`;
+            saveCanvas(filename, 'png');
+        }
+
+        function formatTime(ms) {
+            let totalSeconds = Math.floor(ms / 1000);
+            let minutes = Math.floor(totalSeconds / 60);
+            let seconds = totalSeconds % 60;
+            return `${minutes}分${seconds}秒`;
+        }
+    </script>
+</body>
+</html>
